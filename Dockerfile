@@ -38,7 +38,17 @@ FROM nginx:alpine
 
 RUN rm -rf /usr/share/nginx/html/*
 
-COPY --from=build-env /app/build/web /usr/share/nginx/html
+# Create nginx template for Railway's dynamic PORT
+RUN mkdir -p /etc/nginx/templates && \
+    echo 'server {\n\
+    listen ${PORT};\n\
+    server_name _;\n\
+    root /usr/share/nginx/html;\n\
+    index index.html;\n\
+    location / {\n\
+        try_files $uri $uri/ /index.html;\n\
+    }\n\
+}' > /etc/nginx/templates/default.conf.template
 
-EXPOSE 80
+# Railway sets PORT at runtime, nginx will automatically substitute it
 CMD ["nginx", "-g", "daemon off;"]
