@@ -1,38 +1,45 @@
-# Stage 1: Build the Flutter web app
-FROM debian:latest AS build-env
+# Stage 1: Build Flutter Web
+FROM ubuntu:22.04 AS build-env
 
-# Install dependencies for Flutter
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install minimal dependencies
 RUN apt-get update && \
-    apt-get install -y curl git wget unzip libgconf-2-4 gdb libstdc++6 libglu1-mesa fonts-droid-fallback lib32stdc++6 python3 psmisc && \
-    apt-get clean
+    apt-get install -y \
+        curl \
+        git \
+        wget \
+        unzip \
+        xz-utils \
+        libglu1-mesa \
+        python3 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Clone Flutter SDK
-RUN git clone https://github.com/flutter/flutter.git /usr/local/flutter
+# Install Flutter (stable, shallow clone for speed)
+RUN git clone https://github.com/flutter/flutter.git --depth 1 --branch stable /flutter
 
-# Set flutter path
-ENV PATH="/usr/local/flutter/bin:/usr/local/flutter/bin/cache/dart-sdk/bin:${PATH}"
+ENV PATH="/flutter/bin:/flutter/bin/cache/dart-sdk/bin:${PATH}"
 
-# Run flutter doctor
-RUN flutter doctor -v
+# Pre-cache Flutter web artifacts
+RUN flutter config --enable-web
+RUN flutter precache --web
 
-# Set working directory
 WORKDIR /app
 
-# Copy the source code
+# Copy source code
 COPY . .
 
-# Build the web app
+# Get dependencies and build
 RUN flutter pub get
-RUN flutter build web
+RUN flutter build web --release
 
-# Stage 2: Serve the app using Nginx
+# Stage 2: Serve with Nginx
 FROM nginx:alpine
 
-# Remove default nginx config
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy the build output from Stage 1
 COPY --from=build-env /app/build/web /usr/share/nginx/html
 
-# Railway dynamically injects the port through $PORT
-CMD sed -i -e 's/listen  *80;/listen '"$PORT"';/g' /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
+# Railway injects PORT environment variable
+CMD sed -i -e 's/listen  *80;/listen '$PORT';/g' /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
