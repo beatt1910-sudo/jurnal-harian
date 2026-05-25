@@ -40,5 +40,5 @@ RUN rm -rf /usr/share/nginx/html/*
 
 COPY --from=build-env /app/build/web /usr/share/nginx/html
 
-# Railway injects PORT environment variable
-CMD sed -i -e 's/listen  *80;/listen '$PORT';/g' /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
