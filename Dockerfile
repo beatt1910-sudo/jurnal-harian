@@ -11,7 +11,6 @@ RUN apt-get update && \
         wget \
         unzip \
         xz-utils \
-        libglu1-mesa \
         python3 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

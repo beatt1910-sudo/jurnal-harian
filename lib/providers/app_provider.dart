@@ -40,7 +40,6 @@ class AppProvider extends ChangeNotifier {
       final name = idx != -1 ? _mahasiswaList[idx].nama : 'Mahasiswa';
       
       final userJurnalsCount = _catatanList.where((c) => c.mahasiswaEmail.toLowerCase() == email.toLowerCase()).length;
-      final userTargetsCount = _targetList.where((t) => t.mahasiswaEmail.toLowerCase() == email.toLowerCase()).length;
       final userRefleksiCount = _refleksiList.where((r) => r.mahasiswaEmail.toLowerCase() == email.toLowerCase()).length;
       final userTotalBelajar = _catatanList.where((c) => c.mahasiswaEmail.toLowerCase() == email.toLowerCase()).fold(0, (s, c) => s + c.durasi);
       final userStreak = email.toLowerCase() == 'andi@email.com' ? 6 : (userJurnalsCount > 0 ? 3 : 0);
