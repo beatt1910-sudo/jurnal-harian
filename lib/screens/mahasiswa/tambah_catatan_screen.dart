@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/app_provider.dart';
 import '../../models/models.dart';
@@ -19,6 +24,12 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
   String _status = 'berlangsung';
   String _mataPelajaran = 'Pemrograman Mobile';
   bool _isLoading = false;
+  String? _fotoPath;
+
+  // Stopwatch variables
+  Timer? _timer;
+  int _seconds = 0;
+  bool _isTimerRunning = false;
 
   bool get _isEditMode => widget.catatan != null;
 
@@ -40,23 +51,104 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
     super.initState();
     _judulCtrl = TextEditingController(text: widget.catatan?.judul ?? '');
     _isiCtrl = TextEditingController(text: widget.catatan?.isi ?? '');
-    _durasiCtrl = TextEditingController(text: widget.catatan?.durasi.toString() ?? '');
+    _durasiCtrl = TextEditingController(text: widget.catatan?.durasi.toString() ?? '0');
     _status = widget.catatan?.status ?? 'berlangsung';
+    _fotoPath = widget.catatan?.fotoPenugasan;
+    
+    // Inisialisasi detik dari durasi menit
+    if (widget.catatan != null) {
+      _seconds = widget.catatan!.durasi * 60;
+    }
 
-    // Tentukan mata pelajaran awal
     if (widget.catatan != null && _mataPelajaranList.contains(widget.catatan!.mataPelajaran)) {
       _mataPelajaran = widget.catatan!.mataPelajaran;
     } else if (widget.catatan != null) {
       _mataPelajaran = 'Umum';
     }
+
+    // Timer berjalan otomatis tanpa perlu di-klik
+    _startTimer();
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _judulCtrl.dispose();
     _isiCtrl.dispose();
     _durasiCtrl.dispose();
     super.dispose();
+  }
+
+  void _startTimer() {
+    if (_isTimerRunning) return;
+    setState(() => _isTimerRunning = true);
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _seconds++;
+        _durasiCtrl.text = (_seconds ~/ 60).toString(); // Update durasi dalam menit
+      });
+    });
+  }
+
+  void _pauseTimer() {
+    if (!_isTimerRunning) return;
+    _timer?.cancel();
+    setState(() => _isTimerRunning = false);
+  }
+
+  String _formatTime(int totalSeconds) {
+    int h = totalSeconds ~/ 3600;
+    int m = (totalSeconds % 3600) ~/ 60;
+    int s = totalSeconds % 60;
+    if (h > 0) return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: source, imageQuality: 80);
+      if (image != null) {
+        setState(() {
+          _fotoPath = image.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Gagal mengambil gambar'), backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primary),
+              title: const Text('Kamera'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+              title: const Text('Galeri'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _simpan() async {
@@ -72,20 +164,30 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
       );
       return;
     }
+    
+    // Pause timer saat menyimpan
+    _pauseTimer();
+    
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
 
     final provider = context.read<AppProvider>();
+    
+    // Ambil durasi dari stopwatch jika tidak 0, jika tidak gunakan input manual
+    int durasiMenit = int.tryParse(_durasiCtrl.text) ?? 0;
+    if (durasiMenit == 0 && _seconds > 0) {
+      durasiMenit = _seconds ~/ 60;
+    }
 
     if (_isEditMode) {
-      // Update catatan yang sudah ada
       provider.editCatatan(widget.catatan!.copyWith(
         judul: _judulCtrl.text.trim(),
         mataPelajaran: _mataPelajaran,
         isi: _isiCtrl.text.trim(),
         status: _status,
-        durasi: int.tryParse(_durasiCtrl.text) ?? 0,
+        durasi: durasiMenit,
+        fotoPenugasan: _fotoPath,
       ));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -93,7 +195,6 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
         );
       }
     } else {
-      // Tambah catatan baru
       provider.tambahCatatan(CatatanBelajar(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         judul: _judulCtrl.text.trim(),
@@ -101,9 +202,10 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
         isi: _isiCtrl.text.trim(),
         tanggal: DateTime.now(),
         status: _status,
-        durasi: int.tryParse(_durasiCtrl.text) ?? 0,
+        durasi: durasiMenit,
         mahasiswaEmail: provider.userProfile.email,
         mahasiswaNama: provider.userProfile.nama,
+        fotoPenugasan: _fotoPath,
       ));
     }
     if (mounted) Navigator.pop(context);
@@ -132,7 +234,6 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header badge mode
             if (_isEditMode)
               Container(
                 width: double.infinity,
@@ -156,6 +257,17 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text('Waktu Belajar (Otomatis)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textPrimary)),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      _formatTime(_seconds),
+                      style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w700, color: AppColors.primary, fontFeatures: [FontFeature.tabularFigures()]),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 16),
                   const Text('Informasi Catatan', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textPrimary)),
                   const SizedBox(height: 16),
                   TextField(
@@ -182,10 +294,66 @@ class _TambahCatatanScreenState extends State<TambahCatatanScreen> {
                     controller: _durasiCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'Durasi Belajar',
-                      hintText: '90',
+                      labelText: 'Durasi Manual (opsional jika pakai stopwatch)',
+                      hintText: '0',
                       suffixText: 'menit',
                       prefixIcon: Icon(Icons.timer_outlined),
+                    ),
+                    onChanged: (val) {
+                      final parsed = int.tryParse(val) ?? 0;
+                      if (!_isTimerRunning && parsed > 0) {
+                        setState(() => _seconds = parsed * 60);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            _card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Foto Penugasan (Opsional)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.textPrimary)),
+                      if (_fotoPath != null)
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: AppColors.error, size: 20),
+                          onPressed: () => setState(() => _fotoPath = null),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: _showImageSourceDialog,
+                    child: Container(
+                      width: double.infinity,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+                      ),
+                      child: _fotoPath != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: kIsWeb || _fotoPath!.startsWith('http') || _fotoPath!.startsWith('blob:')
+                                  ? Image.network(_fotoPath!, fit: BoxFit.cover)
+                                  : Image.file(File(_fotoPath!), fit: BoxFit.cover),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.add_a_photo_outlined, size: 40, color: AppColors.textSecondary.withAlpha(150)),
+                                const SizedBox(height: 8),
+                                Text('Ketuk untuk menambah foto', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                              ],
+                            ),
                     ),
                   ),
                 ],

@@ -8,6 +8,7 @@ class CatatanBelajar {
   final int durasi; // menit
   final String mahasiswaEmail;
   final String mahasiswaNama;
+  final String? fotoPenugasan;
 
   CatatanBelajar({
     required this.id,
@@ -19,6 +20,7 @@ class CatatanBelajar {
     required this.durasi,
     required this.mahasiswaEmail,
     required this.mahasiswaNama,
+    this.fotoPenugasan,
   });
 
   CatatanBelajar copyWith({
@@ -31,6 +33,7 @@ class CatatanBelajar {
     int? durasi,
     String? mahasiswaEmail,
     String? mahasiswaNama,
+    String? fotoPenugasan,
   }) {
     return CatatanBelajar(
       id: id ?? this.id,
@@ -42,6 +45,7 @@ class CatatanBelajar {
       durasi: durasi ?? this.durasi,
       mahasiswaEmail: mahasiswaEmail ?? this.mahasiswaEmail,
       mahasiswaNama: mahasiswaNama ?? this.mahasiswaNama,
+      fotoPenugasan: fotoPenugasan ?? this.fotoPenugasan,
     );
   }
 }

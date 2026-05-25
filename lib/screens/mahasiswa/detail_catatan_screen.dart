@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
@@ -144,6 +146,29 @@ class DetailCatatanScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
+
+                  if (updatedCatatan.fotoPenugasan != null) ...[
+                    const Text(
+                      'Foto Penugasan',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: [BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 8, offset: const Offset(0, 2))],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: kIsWeb || updatedCatatan.fotoPenugasan!.startsWith('http') || updatedCatatan.fotoPenugasan!.startsWith('blob:')
+                            ? Image.network(updatedCatatan.fotoPenugasan!, fit: BoxFit.cover)
+                            : Image.file(File(updatedCatatan.fotoPenugasan!), fit: BoxFit.cover),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
 
                   // Isi Catatan
                   Container(

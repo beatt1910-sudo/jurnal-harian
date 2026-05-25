@@ -1,18 +1,11 @@
-# Stage 1: Build aplikasi Flutter Web
-FROM ghcr.io/cirruslabs/flutter:stable AS build
-
-WORKDIR /app
-COPY . .
-
-# Unduh dependencies dan build versi web
-RUN flutter pub get
-RUN flutter build web --release
-
-# Stage 2: Sajikan web menggunakan Nginx
+# Gunakan image Nginx ringan
 FROM nginx:alpine
 
-# Salin hasil build flutter ke folder publik nginx
-COPY --from=build /app/build/web /usr/share/nginx/html
+# Hapus config bawaan Nginx
+RUN rm -rf /usr/share/nginx/html/*
+
+# Salin folder hasil build LOKAL (yang di-push ke GitHub) ke dalam server Nginx
+COPY build/web /usr/share/nginx/html
 
 # Railway secara dinamis menyuntikkan port melalui environment variable $PORT.
 # Perintah di bawah ini akan mengganti port 80 (default nginx) menjadi $PORT sesaat sebelum server menyala.

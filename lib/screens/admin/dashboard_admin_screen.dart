@@ -311,7 +311,36 @@ class _KelolaJurnalTab extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(c.judul, style: const TextStyle(fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(child: Text(c.isi)),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.timer_outlined, size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Text('Durasi Belajar: ${c.durasi} menit', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (c.fotoPenugasan != null) ...[
+                const Text('Foto Penugasan:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: kIsWeb || c.fotoPenugasan.startsWith('http') || c.fotoPenugasan.startsWith('blob:')
+                      ? Image.network(c.fotoPenugasan, fit: BoxFit.cover)
+                      : Image.file(File(c.fotoPenugasan), fit: BoxFit.cover),
+                ),
+                const SizedBox(height: 16),
+              ],
+              const Text('Catatan:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 8),
+              Text(c.isi),
+            ],
+          ),
+        ),
         actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Tutup'))],
       ),
     );
